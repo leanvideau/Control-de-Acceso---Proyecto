@@ -5,7 +5,7 @@ El gimnasio del que estoy encargado necesita un cambio de control de acceso, par
 ## Investigación
 
 Primero investigué muchos sistemas de gimnasios, encontré uno que encajaba perfectamente con lo que necesitaba. El sistema se llama GYM Flow y trabaja con molinetes principalmente, pero consultando al soporte, me dijeron que podía configurar un microcontrolador Raspberry Pi 3 conectado con un Relé de 5V 10A estos componentes funcionan juntos de la siguiente forma:        
-    El Raspberry Pi 3 conectado con la PC Windows recibe una señal de que un cliente introdujo su DNI y que ha pagado el mismo dispositivo luego le "dice" al Relé que se apague para que la cerradura magnética se abra automáticamente. 
+    El Raspberry Pi 3 conectado con la PC Windows recibe una señal de que un cliente introdujo su DNI y que ha pagado, el mismo dispositivo luego le "dice" al Relé que se apague para que la cerradura magnética se abra automáticamente. 
 
 ## Configuración Inicial
 
