@@ -10,5 +10,7 @@ Primero que nada investigué miles de sistemas de gimnasios habían muchos que e
 ## Configuración Inicial
 
 Luego de comprar todas las cosas necesarias (Fuente, Micro SD, Gabinete, etc), instalamos el Sistema Operativo Raspberry PI OS en la Micro SD para que mas adelante nos podamos establecer una conexión con el Raspberry mediante SSH.
+
 <img width="1111" height="333" alt="imagen" src="https://github.com/user-attachments/assets/dd77e1e1-8382-4a5c-a412-710caa2d0740" />
+
 Luego de conectarnos actualizamos las credenciales, agregamos acceso por llaves SSH y actualizamos el sistema operativo para tener todo funcionando perfectamente
