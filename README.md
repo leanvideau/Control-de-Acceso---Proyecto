@@ -1,11 +1,11 @@
 # Control-de-Acceso---Proyecto
 Documentación del proceso de implementación del sistema de acceso.
-El gimnasio del que estoy encargado necesita un cambio de control de acceso, para mantener controlado a cada alumno
+El gimnasio del que estoy encargado necesita un cambio de control de acceso, para mantener controlado a cada alumno.
 
 ## Investigación
 
-Primero investigué muchos sistemas de gimnasios, encontré uno que encajaba perfectamente con lo que necesitaba. El sistema se llama GYM Flow y trabaja con molinetes principalmente, pero consultando al soporte, me dijeron que podía configurar un microcontrolador Raspberry Pi 3 conectado con un Relé de 5V 10A estos componentes funcionan juntos de la siguiente forma:        
-    El Raspberry Pi 3 conectado con la PC Windows recibe una señal de que un cliente introdujo su DNI y que ha pagado, el mismo dispositivo luego le "dice" al Relé que se apague para que la cerradura magnética se abra automáticamente. 
+Primero investigué muchos sistemas de gimnasios, encontré uno que encajaba perfectamente con lo que necesitaba. El sistema se llama GYM Flow y trabaja con molinetes principalmente, pero consultando al soporte, me dijeron que podía configurar un Raspberry Pi 3 conectado con un Relé de 5V 10A estos componentes funcionan juntos de la siguiente forma:        
+   la PC con Windows corre el Access Bridge, que valida contra GymFlow. Si el DNI está al día, le avisa por WebSocket a un servicio en Python en la Pi, y la Pi activa el relé, que corta la alimentación de la cerradura y la puerta se libera.. 
 
 ## Configuración Inicial
 
@@ -19,3 +19,7 @@ Agregamos un Firewall (explicación de la config). <br>
 Y además agregamos un programa que sirve para que comandos que demoran tenga un respaldo de que si se cae la conexión se reanuda el proceso. Programa: **tmux**
 
 <img width="1118" height="583" alt="Captura de pantalla 2026-11-03 171640" src="https://github.com/user-attachments/assets/d0f2f248-5733-4670-82cb-f9348f9acb9b" />
+
+## Configuración de sistema
+
+Para la configuración principal del sistema vamos a agregar un usuario aparte al técnico del sistema y le otorgamos los privilegios necesarios dentro del dispositivo. La conexión se hará por SSH mediante Tailscale (VPN privada para una establecer una conexión SSH segura) ya que no conviene abrir el puerto 22 al router sabiendo que hay muchos bots haciendo ataques de fuerza bruta constantemente en la red, entonces es un riesgo completamente evitable. <br>
