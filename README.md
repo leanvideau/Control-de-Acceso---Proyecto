@@ -17,10 +17,10 @@ Mas adelante logramos establecer una conexión con el Raspberry mediante SSH par
 Luego de conectarnos actualizamos las credenciales, agregamos acceso por llaves SSH y actualizamos el sistema operativo para tener todo funcionando perfectamente.<br>
 Ahora necesitamos agregarle la seguridad correspondiente al dispositivo, ya que es un activo crítico. Primero instalamos un programa que se encarga de actualizar automáticamente para tener todos los parches de seguridad al día. Programa: **unattended-upgrades**.<br>
 Agregamos un Firewall, aplicándole las reglas correspondientes, primero para empezar dejamos todo lo que entre a la red deshabilitado menos el puerto 22 dentro de la red y por Tailscale, y todo lo que sale lo dejamos habilitado. <br>
-'''sudo ufw default deny incoming
+´´´sudo ufw default deny incoming
 sudo ufw default allow outgoing
 sudo ufw allow from 192.168.1.0/24 to any port 22 proto tcp
-sudo ufw allow in on tailscale0''' <br>
+sudo ufw allow in on tailscale0´´´ <br>
 Y además agregamos un programa, que sirve para que los comandos que demoran, tengan un respaldo de que si se cae la conexión SSH, los mismos sigan corriendo. Programa: **tmux**
 
 <img width="1118" height="583" alt="Captura de pantalla 2026-11-03 171640" src="https://github.com/user-attachments/assets/d0f2f248-5733-4670-82cb-f9348f9acb9b" />
