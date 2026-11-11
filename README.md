@@ -31,3 +31,10 @@ Y además agregamos un programa, que sirve para que los comandos que demoran, te
 
 Para la configuración principal del sistema vamos a agregar un usuario aparte al técnico del sistema y le otorgamos los privilegios necesarios dentro del dispositivo. La conexión se hará por SSH mediante Tailscale (VPN privada para establecer una conexión SSH segura) ya que no conviene abrir el puerto 22 al router sabiendo que hay muchos bots haciendo ataques de fuerza bruta constantemente en la red, entonces es un riesgo completamente evitable. <br>
 
+Luego de que el técnico haya instalado todo lo necesario en la PC principal y en la Raspberry (Access Bridge), configuramos nuevamente el firewall para que permita conexiones en el puerto 7777 que sería donde se encuentra el Websocket.<br>
+```bash
+sudo ufw allow from 192.168.1.0/24 to any port 7777 proto tcp
+```
+Luego procedemos a probar si el Access Bridge le transmite la conexión al Raspberry, cuando vimos que todo funcionaba solo quedaba, configurar el sistema y conectar el relé y la cerradura magnética. 
+En el sistema le asignamos a cada profesor el rol de personal, para que puedan entrar con su DNI sin ningún problema, y la concedemos a cada uno una cuenta con una contraseña para que tengan sus datos, sus rutinas, la alimentación de sus alumnos, y demás a su disposición.<br>
+Además importamos los datos de los alumnos al nuevo sistema con su membresía correspondiente.
