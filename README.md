@@ -38,3 +38,26 @@ sudo ufw allow from 192.168.1.0/24 to any port 7777 proto tcp
 Luego procedemos a probar si el Access Bridge le transmite la conexión al Raspberry, cuando vimos que todo funcionaba solo quedaba, configurar el sistema y conectar el relé y la cerradura magnética. 
 En el sistema le asignamos a cada profesor el rol de personal, para que puedan entrar con su DNI sin ningún problema, y la concedemos a cada uno una cuenta con una contraseña para que tengan sus datos, sus rutinas, la alimentación de sus alumnos, y demás a su disposición.<br>
 Además importamos los datos de los alumnos al nuevo sistema con su membresía correspondiente.
+
+## Conexión del hardware
+
+Con el sistema funcionando, pasamos a la parte física. Primero conectamos el relé a la Raspberry: el relé tiene tres bornes de control (DC+, DC− e IN) que van a los pines GPIO de la Pi, y el jumper del relé lo dejamos en **H** (High Level Trigger) para que se active cuando la Pi le manda señal alta.<br>
+
+| Pin Raspberry | Función | Borne del relé |
+|---|---|---|
+| Pin 2 | 5V | DC+ |
+| Pin 9 | GND | DC− |
+| Pin 11 | GPIO17 (señal) | IN |
+
+El pin 2 le da energía al relé, el pin 9 es la tierra común entre los dos y el pin 11 es la señal con la que la Pi le indica al relé cuándo activarse. De esta forma la Raspberry nunca está en contacto con los 12V de la cerradura: el relé funciona como intermediario entre los dos circuitos.<br>
+
+<!-- foto del cableado -->
+
+Para comprobar que la Pi controla el relé, ejecutamos una prueba que lo activa durante 2 segundos:
+```bash
+python3 -c "from gpiozero import OutputDevice; from time import sleep; r = OutputDevice(17, active_high=True, initial_value=False); r.on(); sleep(2); r.off()"
+```
+<!-- video o foto del relé activado -->
+
+### Relé → Cerradura magnética
+<!-- se completa al instalar la cerradura: fuente 12V → COM, NC → botón de salida → cerradura -->
