@@ -1,6 +1,7 @@
 """Busca los pagos nuevos en Power Gym desde la última corrida.
 
-Por ahora genera un reporte (pagos_nuevos.csv) con lo que hay que pasar a GymFlow.
+Por ahora genera un reporte (pagos_nuevos.csv) con lo que hay que pasar a GymFlow,
+y al lado cómo está ese alumno hoy en GymFlow (plan, vencimiento, si debe).
 Cuando tengamos las llamadas de GymFlow, este mismo programa los va a cargar solo.
 
 Uso:
@@ -9,7 +10,9 @@ Uso:
 
 Configuración en config.json (NO subirlo a ningún lado, tiene la sesión):
     {"powergym_url": "https://laroca.sistemapowergym.com",
-     "powergym_cookie": "valor de powergym_session"}
+     "powergym_cookie": "valor de powergym_session",
+     "gymflow_url": "https://sistema.gymflow.com.ar",
+     "gymflow_token": "valor de gf_token"}
 """
 
 from __future__ import annotations
@@ -20,6 +23,7 @@ import json
 from datetime import datetime, timedelta
 from pathlib import Path
 
+from gymflow import GymFlow
 from powergym import Alumno, Movimiento, PowerGym
 
 CARPETA = Path(__file__).parent
@@ -73,6 +77,10 @@ def main() -> None:
 
     config = json.loads(CONFIG.read_text(encoding="utf-8"))
     pg = PowerGym(config["powergym_url"], config["powergym_cookie"])
+    gf = None
+    if config.get("gymflow_token"):
+        gf = GymFlow(config.get("gymflow_url", "https://sistema.gymflow.com.ar"),
+                     config["gymflow_token"])
     estado = leer_estado()
 
     ahora = datetime.now()
@@ -90,12 +98,24 @@ def main() -> None:
     with REPORTE.open("w", newline="", encoding="utf-8-sig") as f:
         w = csv.writer(f, delimiter=";")
         w.writerow(["DNI", "Alumno", "Actividades", "Fecha pago", "Detalle",
-                    "Forma de pago", "Monto", "Saldo actual", "ID movimiento"])
+                    "Forma de pago", "Monto", "Saldo actual", "ID movimiento",
+                    "GymFlow: plan", "GymFlow: vence", "GymFlow: estado"])
+        socios = {}
         for a, m in nuevos:
+            gf_cols = ["", "", "sin revisar"]
+            if gf and a.dni:
+                if a.dni not in socios:
+                    socios[a.dni] = gf.buscar_por_dni(a.dni)
+                s = socios[a.dni]
+                if s is None:
+                    gf_cols = ["", "", "NO ESTÁ EN GYMFLOW"]
+                else:
+                    estado = "debe" if s.debe else (s.estado_pago or "")
+                    gf_cols = [s.plan or "", f"{s.vence:%d/%m/%Y}" if s.vence else "", estado]
             w.writerow([a.dni or "SIN DNI", a.nombre, a.actividades,
                         f"{m.fecha:%d/%m/%Y}", m.detalle, m.forma_pago or "",
                         str(m.monto or "").replace(".", ","),
-                        str(a.saldo or "").replace(".", ","), m.id])
+                        str(a.saldo or "").replace(".", ","), m.id, *gf_cols])
 
     print(f"Pagos nuevos: {len(nuevos)} -> {REPORTE.name}")
 

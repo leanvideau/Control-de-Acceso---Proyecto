@@ -3,7 +3,8 @@
 Mientras conviven los dos sistemas, este programa busca los **pagos nuevos** cargados
 en Power Gym para pasarlos a GymFlow, cruzando a los alumnos por **DNI**.
 
-Estado actual: lee Power Gym y arma `pagos_nuevos.csv` (se abre con Excel).
+Estado actual: lee Power Gym y arma `pagos_nuevos.csv` (se abre con Excel), con una
+columna que muestra cómo está cada alumno en GymFlow (plan, vencimiento, si debe).
 La carga automática en GymFlow se agrega cuando tengamos capturadas sus llamadas.
 
 ## Cómo funciona
@@ -26,11 +27,13 @@ correr `python sincronizar.py --dias 15` para revisar un período más largo.
 ```json
 {
   "powergym_url": "https://laroca.sistemapowergym.com",
-  "powergym_cookie": "PEGAR ACÁ EL VALOR DE powergym_session"
+  "powergym_cookie": "PEGAR ACÁ EL VALOR DE powergym_session",
+  "gymflow_url": "https://sistema.gymflow.com.ar",
+  "gymflow_token": "PEGAR ACÁ EL VALOR DE gf_token"
 }
 ```
 
-El valor de la cookie se saca con F12 → Network → cualquier llamada → Cookie.
+Los valores de las cookies (`powergym_session` y `gf_token`) se sacan con F12 → Network → cualquier llamada → Cookie.
 **Es como una contraseña: no compartir ni subir `config.json`.**
 
 ## Uso
