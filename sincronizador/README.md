@@ -28,42 +28,27 @@ correr `python sincronizar.py --dias 15` para revisar un período más largo.
 
 1. Instalar Python 3 desde python.org (marcar "Add Python to PATH").
 2. En esta carpeta: `pip install -r requirements.txt`
-3. Crear `config.json`:
+3. Copiar `config.ejemplo.json` como `config.json` y pegar las dos cookies
+   (`powergym_session` y `gf_token`, se sacan con F12 → Network → cualquier llamada → Cookie).
+   **Son como una contraseña: no compartir ni subir `config.json`.**
 
-```json
-{
-  "powergym_url": "https://laroca.sistemapowergym.com",
-  "powergym_cookie": "PEGAR ACÁ EL VALOR DE powergym_session",
-  "gymflow_url": "https://sistema.gymflow.com.ar",
-  "gymflow_token": "PEGAR ACÁ EL VALOR DE gf_token",
-  "cash_shift_id": 3296,
-  "planes": {
-    "MUSCULACION 2026": {"plan_id": 1751, "meses": 1}
-  },
-  "formas_pago": {
-    "Efectivo": 843
-  }
-}
-```
-
-- `planes`: para cada texto de actividades de Power Gym (como aparece en la lista de
-  alumnos), qué plan de GymFlow corresponde y cuántos meses dura.
-- `formas_pago`: forma de pago de Power Gym → ID de medio de pago en GymFlow.
-- `cash_shift_id`: turno de caja de GymFlow donde se registran los cobros.
-
-Los IDs se ven con F12 al registrar un pago a mano en GymFlow (`plan_id`,
-`cash_payment_method_id`, `cash_shift_id`).
-
-Los valores de las cookies (`powergym_session` y `gf_token`) se sacan con F12 → Network → cualquier llamada → Cookie.
-**Es como una contraseña: no compartir ni subir `config.json`.**
+En `config.json`:
+- `planes`: qué plan de GymFlow corresponde a cada combinación de actividades de
+  Power Gym (tal cual aparecen en la lista de alumnos; el orden y las tildes no importan).
+  Si un alumno tiene una combinación que no está en la tabla, queda para hacer a mano.
+- `formas_pago`: forma de pago de Power Gym → ID del medio de pago en GymFlow
+  (`null` = todavía no lo sabemos, esos pagos quedan para hacer a mano).
+- `cash_shift_id` (opcional): turno de caja de GymFlow. Si no usan turnos, no ponerlo.
 
 ## Uso
 
 ```bash
 python sincronizar.py            # MODO PRUEBA: solo muestra qué haría (no toca GymFlow)
-python sincronizar.py --cargar   # carga de verdad
+python sincronizar.py --cargar   # carga, preguntando "¿Lo cargo? [s/n]" en cada uno
 python sincronizar.py --dias 15 --cargar   # revisar un período más largo
 ```
+
+En Windows también se puede hacer doble clic en `sincronizar.bat`.
 
 Siempre conviene correr primero el modo prueba y mirar el reporte `_prueba.csv`.
 

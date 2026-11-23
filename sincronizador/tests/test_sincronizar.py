@@ -40,12 +40,11 @@ def test_corta_en_la_ultima_corrida_y_filtra_pagos_viejos():
 
 
 CONFIG = {"powergym_url": "u", "powergym_cookie": "c", "gymflow_token": "t",
-          "cash_shift_id": 3296,
-          "planes": {"MUSCULACION": {"plan_id": 1751, "meses": 1}},
+          "planes": [{"powergym": ["MUSCULACION"], "plan_id": 1751, "dias": 30}],
           "formas_pago": {"Efectivo": 843}}
 
 
-def _correr(tmp_path, monkeypatch, socio_vence, argv):
+def _correr(tmp_path, monkeypatch, socio_vence, argv, respuesta="s"):
     import json, sys
     import sincronizar
     from gymflow import Socio
@@ -65,6 +64,7 @@ def _correr(tmp_path, monkeypatch, socio_vence, argv):
     monkeypatch.setattr(sincronizar, "PowerGym", lambda *a: pg)
     monkeypatch.setattr(sincronizar, "GymFlow", FakeGF)
     monkeypatch.setattr(sys, "argv", ["sincronizar.py", *argv])
+    monkeypatch.setattr("builtins.input", lambda *_: respuesta)
     sincronizar.main()
     reporte = next((tmp_path / "reportes").iterdir()).read_text(encoding="utf-8-sig")
     return posts, reporte
@@ -81,7 +81,9 @@ def test_carga_y_no_repite(tmp_path, monkeypatch):
     posts, reporte = _correr(tmp_path, monkeypatch, None, ["--cargar"])
     assert len(posts) == 1 and posts[0]["plan_id"] == "1751" and posts[0]["member_id"] == 9
     assert posts[0]["cash_payment_method_id"] == 843 and posts[0]["amount_paid"] == "1000.00"
-    assert "CARGADO" in reporte
+    assert "CARGADO" in reporte and "cash_shift_id" not in posts[0]
+    from datetime import date, timedelta
+    assert posts[0]["end_date"] == (date.today() + timedelta(days=30)).isoformat()
     assert json.loads((tmp_path / "estado.json").read_text())["ultimo_movimiento_id"] == 500
     shutil.rmtree(tmp_path / "reportes")
     posts2, _ = _correr(tmp_path, monkeypatch, None, ["--cargar"])
@@ -92,3 +94,8 @@ def test_no_carga_si_ya_vigente(tmp_path, monkeypatch):
     from datetime import date, timedelta
     posts, reporte = _correr(tmp_path, monkeypatch, date.today() + timedelta(days=10), ["--cargar"])
     assert posts == [] and "ya está vigente" in reporte
+
+
+def test_si_digo_que_no_no_carga(tmp_path, monkeypatch):
+    posts, reporte = _correr(tmp_path, monkeypatch, None, ["--cargar"], respuesta="n")
+    assert posts == [] and "dijiste que no" in reporte

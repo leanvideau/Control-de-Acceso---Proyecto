@@ -2,18 +2,31 @@
 
 from __future__ import annotations
 
-import calendar
+import unicodedata
 from dataclasses import dataclass
-from datetime import date
+from datetime import date, timedelta
 
 from gymflow import Socio
 from powergym import Alumno, Movimiento
 
 
-def sumar_meses(d: date, meses: int) -> date:
-    m = d.month - 1 + meses
-    anio, mes = d.year + m // 12, m % 12 + 1
-    return date(anio, mes, min(d.day, calendar.monthrange(anio, mes)[1]))
+def _normalizar(texto: str) -> str:
+    sin_tildes = unicodedata.normalize("NFKD", texto).encode("ascii", "ignore").decode()
+    return " ".join(sin_tildes.upper().replace("/", " ").split())
+
+
+def actividades_de(texto: str) -> frozenset[str]:
+    """'MUSCULACION 2026, Yoga Integral - ...' -> conjunto normalizado (el orden no importa)."""
+    return frozenset(_normalizar(a) for a in texto.split(",") if a.strip())
+
+
+def buscar_plan(actividades: str, planes: list[dict]) -> dict | None:
+    """Busca el plan de GymFlow cuyo grupo de actividades de Power Gym coincide exacto."""
+    clave = actividades_de(actividades)
+    for plan in planes:
+        if actividades_de(", ".join(plan["powergym"])) == clave:
+            return plan
+    return None
 
 
 @dataclass
@@ -28,8 +41,8 @@ def decidir(alumno: Alumno, pago: Movimiento, socio: Socio | None, config: dict)
     if socio is None:
         return Decision(None, "Manual: no está en GymFlow")
 
-    plan = config.get("planes", {}).get(alumno.actividades)
-    if not plan:
+    plan = buscar_plan(alumno.actividades, config.get("planes", []))
+    if not plan or not plan.get("plan_id"):
         return Decision(None, f"Manual: falta equivalencia de plan para '{alumno.actividades}'")
 
     forma_id = config.get("formas_pago", {}).get(pago.forma_pago or "")
@@ -43,7 +56,7 @@ def decidir(alumno: Alumno, pago: Movimiento, socio: Socio | None, config: dict)
     if socio.vence and socio.vence >= inicio:
         return Decision(None, f"Manual: en GymFlow ya está vigente hasta {socio.vence:%d/%m/%Y}")
 
-    fin = sumar_meses(inicio, int(plan.get("meses", 1)))
+    fin = inicio + timedelta(days=int(plan.get("dias", 30)))
     monto = f"{pago.monto:.2f}"
     datos = {
         "day_pass": "",
@@ -56,7 +69,8 @@ def decidir(alumno: Alumno, pago: Movimiento, socio: Socio | None, config: dict)
         "notes": f"Importado de Power Gym (mov. {pago.id}: {pago.detalle})",
         "member_id": socio.id,
         "cash_payment_method_id": int(forma_id),
-        "cash_shift_id": int(config["cash_shift_id"]),
         "all_sedes": 1,
     }
-    return Decision(datos, f"Cargar plan {plan['plan_id']} del {inicio:%d/%m/%Y} al {fin:%d/%m/%Y} por $ {monto}")
+    if config.get("cash_shift_id"):
+        datos["cash_shift_id"] = int(config["cash_shift_id"])
+    return Decision(datos, f"Cargar '{plan.get('nombre', plan['plan_id'])}' del {inicio:%d/%m/%Y} al {fin:%d/%m/%Y} por $ {monto}")

@@ -6,7 +6,7 @@ la membresía con el pago. Lo que no se puede decidir solo queda en el reporte
 
 Uso:
     python sincronizar.py                    # MODO PRUEBA: solo muestra qué haría
-    python sincronizar.py --cargar           # carga de verdad en GymFlow
+    python sincronizar.py --cargar           # carga en GymFlow, preguntando uno por uno
     python sincronizar.py --dias 10          # mirar los últimos 10 días
 
 Configuración en config.json (NO subirlo a ningún lado, tiene la sesión):
@@ -14,9 +14,9 @@ Configuración en config.json (NO subirlo a ningún lado, tiene la sesión):
      "powergym_cookie": "valor de powergym_session",
      "gymflow_url": "https://sistema.gymflow.com.ar",
      "gymflow_token": "valor de gf_token",
-     "cash_shift_id": 3296,
-     "planes": {"MUSCULACION 2026": {"plan_id": 1751, "meses": 1}},
+     "planes": [{"powergym": ["MUSCULACION 2026"], "plan_id": 1751, "dias": 30}],
      "formas_pago": {"Efectivo": 843}}
+    (ver config.ejemplo.json con la tabla completa)
 """
 
 from __future__ import annotations
@@ -73,13 +73,26 @@ def pagos_nuevos(pg: PowerGym, alumnos: list[Alumno], ultimo_id: int,
     return nuevos
 
 
+def confirmar(a: Alumno, m: Movimiento, motivo: str) -> bool:
+    """Pregunta antes de tocar GymFlow. Lean quiere aprobar cada cambio."""
+    print()
+    print(f"  {a.nombre} (DNI {a.dni}) pagó {m.forma_pago} $ {m.monto} el {m.fecha:%d/%m/%Y} ({m.detalle})")
+    print(f"  -> {motivo}")
+    while True:
+        r = input("  ¿Lo cargo en GymFlow? [s/n]: ").strip().lower()
+        if r in ("s", "si", "sí"):
+            return True
+        if r in ("n", "no"):
+            return False
+
+
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--dias", type=int, default=None,
                     help="ignorar la última corrida y mirar N días hacia atrás")
     ap.add_argument("--cargar", action="store_true",
-                    help="cargar de verdad en GymFlow (sin esto solo muestra qué haría)")
+                    help="cargar en GymFlow preguntando antes cada uno (sin esto solo muestra qué haría)")
     args = ap.parse_args()
 
     config = json.loads(CONFIG.read_text(encoding="utf-8"))
@@ -128,6 +141,9 @@ def main() -> None:
             decision = decidir(a, m, socio, config)
             accion = decision.motivo
             if decision.datos is None:
+                n_manual += 1
+            elif args.cargar and not confirmar(a, m, decision.motivo):
+                accion = "NO cargado (dijiste que no): " + accion
                 n_manual += 1
             elif args.cargar:
                 try:
