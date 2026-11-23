@@ -110,8 +110,8 @@ def main() -> None:
                 if s is None:
                     gf_cols = ["", "", "NO ESTÁ EN GYMFLOW"]
                 else:
-                    estado = "debe" if s.debe else (s.estado_pago or "")
-                    gf_cols = [s.plan or "", f"{s.vence:%d/%m/%Y}" if s.vence else "", estado]
+                    estado_gf = "debe" if s.debe else (s.estado_pago or "")
+                    gf_cols = [s.plan or "", f"{s.vence:%d/%m/%Y}" if s.vence else "", estado_gf]
             w.writerow([a.dni or "SIN DNI", a.nombre, a.actividades,
                         f"{m.fecha:%d/%m/%Y}", m.detalle, m.forma_pago or "",
                         str(m.monto or "").replace(".", ","),
