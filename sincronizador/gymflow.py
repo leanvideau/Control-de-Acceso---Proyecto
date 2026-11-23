@@ -63,3 +63,19 @@ class GymFlow:
             if socio.dni == dni:
                 return socio
         return None
+
+    def crear_membresia(self, datos: dict) -> dict:
+        """Registra una membresía con su pago (lo mismo que el botón Guardar de la ficha)."""
+        r = self.http.post(
+            f"{self.base}/api/member-memberships.php",
+            json=datos,
+            headers={
+                "Origin": self.base,
+                "Referer": f"{self.base}/pages/admin/member-detail.php?id={datos['member_id']}",
+            },
+            timeout=30,
+        )
+        r.raise_for_status()
+        if "json" not in r.headers.get("Content-Type", ""):
+            raise RuntimeError("GymFlow no devolvió datos: probablemente venció la sesión.")
+        return r.json()

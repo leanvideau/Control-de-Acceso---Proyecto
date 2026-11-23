@@ -1,18 +1,22 @@
 """Busca los pagos nuevos en Power Gym desde la última corrida.
 
-Por ahora genera un reporte (pagos_nuevos.csv) con lo que hay que pasar a GymFlow,
-y al lado cómo está ese alumno hoy en GymFlow (plan, vencimiento, si debe).
-Cuando tengamos las llamadas de GymFlow, este mismo programa los va a cargar solo.
+Por cada pago busca al alumno por DNI en GymFlow y, si está todo claro, le carga
+la membresía con el pago. Lo que no se puede decidir solo queda en el reporte
+(carpeta reportes/) para hacerlo a mano.
 
 Uso:
-    python sincronizar.py            # busca pagos desde la última corrida
-    python sincronizar.py --dias 10  # primera vez: mira los últimos 10 días
+    python sincronizar.py                    # MODO PRUEBA: solo muestra qué haría
+    python sincronizar.py --cargar           # carga de verdad en GymFlow
+    python sincronizar.py --dias 10          # mirar los últimos 10 días
 
 Configuración en config.json (NO subirlo a ningún lado, tiene la sesión):
     {"powergym_url": "https://laroca.sistemapowergym.com",
      "powergym_cookie": "valor de powergym_session",
      "gymflow_url": "https://sistema.gymflow.com.ar",
-     "gymflow_token": "valor de gf_token"}
+     "gymflow_token": "valor de gf_token",
+     "cash_shift_id": 3296,
+     "planes": {"MUSCULACION 2026": {"plan_id": 1751, "meses": 1}},
+     "formas_pago": {"Efectivo": 843}}
 """
 
 from __future__ import annotations
@@ -24,12 +28,13 @@ from datetime import datetime, timedelta
 from pathlib import Path
 
 from gymflow import GymFlow
+from membresias import decidir
 from powergym import Alumno, Movimiento, PowerGym
 
 CARPETA = Path(__file__).parent
 CONFIG = CARPETA / "config.json"
 ESTADO = CARPETA / "estado.json"
-REPORTE = CARPETA / "pagos_nuevos.csv"
+REPORTES = CARPETA / "reportes"   # un CSV por corrida, para no perder nada
 
 # La lista de Power Gym ordena por última visita, no por último pago. Un alumno puede
 # pagar sin venir ese día, así que miramos un margen extra hacia atrás.
@@ -73,15 +78,16 @@ def main() -> None:
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--dias", type=int, default=None,
                     help="ignorar la última corrida y mirar N días hacia atrás")
+    ap.add_argument("--cargar", action="store_true",
+                    help="cargar de verdad en GymFlow (sin esto solo muestra qué haría)")
     args = ap.parse_args()
 
     config = json.loads(CONFIG.read_text(encoding="utf-8"))
     pg = PowerGym(config["powergym_url"], config["powergym_cookie"])
-    gf = None
-    if config.get("gymflow_token"):
-        gf = GymFlow(config.get("gymflow_url", "https://sistema.gymflow.com.ar"),
-                     config["gymflow_token"])
+    gf = GymFlow(config.get("gymflow_url", "https://sistema.gymflow.com.ar"),
+                 config["gymflow_token"])
     estado = leer_estado()
+    cargados = set(estado.get("cargados", []))
 
     ahora = datetime.now()
     if args.dias is not None or "ultima_corrida" not in estado:
@@ -93,36 +99,64 @@ def main() -> None:
 
     alumnos = alumnos_a_revisar(pg, desde)
     print(f"Alumnos que vinieron desde {desde:%d/%m/%Y %H:%M}: {len(alumnos)}")
-    nuevos = pagos_nuevos(pg, alumnos, ultimo_id, desde)
+    nuevos = [(a, m) for a, m in pagos_nuevos(pg, alumnos, ultimo_id, desde)
+              if m.id not in cargados]
+    print("MODO REAL: se carga en GymFlow" if args.cargar else
+          "MODO PRUEBA: no se toca GymFlow (usar --cargar para cargar)")
 
-    with REPORTE.open("w", newline="", encoding="utf-8-sig") as f:
+    REPORTES.mkdir(exist_ok=True)
+    reporte = REPORTES / f"pagos_{ahora:%Y-%m-%d_%H%M}{'' if args.cargar else '_prueba'}.csv"
+    socios: dict = {}
+    n_cargados = n_manual = 0
+    with reporte.open("w", newline="", encoding="utf-8-sig") as f:
         w = csv.writer(f, delimiter=";")
         w.writerow(["DNI", "Alumno", "Actividades", "Fecha pago", "Detalle",
                     "Forma de pago", "Monto", "Saldo actual", "ID movimiento",
-                    "GymFlow: plan", "GymFlow: vence", "GymFlow: estado"])
-        socios = {}
+                    "GymFlow: plan", "GymFlow: vence", "GymFlow: estado", "Acción"])
         for a, m in nuevos:
-            gf_cols = ["", "", "sin revisar"]
-            if gf and a.dni:
+            socio = None
+            if a.dni:
                 if a.dni not in socios:
                     socios[a.dni] = gf.buscar_por_dni(a.dni)
-                s = socios[a.dni]
-                if s is None:
-                    gf_cols = ["", "", "NO ESTÁ EN GYMFLOW"]
-                else:
-                    estado_gf = "debe" if s.debe else (s.estado_pago or "")
-                    gf_cols = [s.plan or "", f"{s.vence:%d/%m/%Y}" if s.vence else "", estado_gf]
+                socio = socios[a.dni]
+            gf_cols = ["", "", "NO ESTÁ EN GYMFLOW"]
+            if socio:
+                estado_gf = "debe" if socio.debe else (socio.estado_pago or "")
+                gf_cols = [socio.plan or "",
+                           f"{socio.vence:%d/%m/%Y}" if socio.vence else "", estado_gf]
+
+            decision = decidir(a, m, socio, config)
+            accion = decision.motivo
+            if decision.datos is None:
+                n_manual += 1
+            elif args.cargar:
+                try:
+                    gf.crear_membresia(decision.datos)
+                    cargados.add(m.id)
+                    n_cargados += 1
+                    accion = "CARGADO: " + accion
+                    socios.pop(a.dni, None)  # que la próxima búsqueda vea la membresía nueva
+                except Exception as e:  # seguimos con los demás y queda en el reporte
+                    accion = f"ERROR al cargar: {e}"
+                    n_manual += 1
+            else:
+                accion = "Se cargaría: " + accion
+
             w.writerow([a.dni or "SIN DNI", a.nombre, a.actividades,
                         f"{m.fecha:%d/%m/%Y}", m.detalle, m.forma_pago or "",
                         str(m.monto or "").replace(".", ","),
-                        str(a.saldo or "").replace(".", ","), m.id, *gf_cols])
+                        str(a.saldo or "").replace(".", ","), m.id, *gf_cols, accion])
 
-    print(f"Pagos nuevos: {len(nuevos)} -> {REPORTE.name}")
+    print(f"Pagos nuevos: {len(nuevos)} | cargados: {n_cargados} | "
+          f"para hacer a mano: {n_manual} -> {reporte}")
 
-    estado["ultima_corrida"] = ahora.isoformat(timespec="seconds")
-    if nuevos:
-        estado["ultimo_movimiento_id"] = max(ultimo_id, nuevos[-1][1].id)
-    ESTADO.write_text(json.dumps(estado, indent=2), encoding="utf-8")
+    # En modo prueba no avanzamos el marcador, así la corrida real ve los mismos pagos.
+    if args.cargar:
+        estado["ultima_corrida"] = ahora.isoformat(timespec="seconds")
+        if nuevos:
+            estado["ultimo_movimiento_id"] = max(ultimo_id, max(m.id for _, m in nuevos))
+        estado["cargados"] = sorted(cargados)[-500:]
+        ESTADO.write_text(json.dumps(estado, indent=2), encoding="utf-8")
 
 
 if __name__ == "__main__":
