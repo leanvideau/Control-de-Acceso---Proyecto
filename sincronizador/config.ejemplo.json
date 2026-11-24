@@ -13,12 +13,8 @@
      "plan_id": 1763, "nombre": "YOGA INTEGRAL + GYM", "dias": 30},
     {"powergym": ["MUSCULACION 2026", "A Puro Ritmo - Maxi Piscitelli - Martes y Jueves 19:30 hs"],
      "plan_id": 1764, "nombre": "A PURO RITMO + GIMNASIO", "dias": 30},
-    {"powergym": ["Pilates Mat - Prof. Georgina Pesci /"],
-     "plan_id": 1759, "nombre": "Pilates Mat", "dias": 30},
-    {"powergym": ["GAP - Prof. Carrion Veronica - Martes y Jueves 16:15 hs"],
-     "plan_id": 1760, "nombre": "GAP", "dias": 30},
-    {"powergym": ["DESAROLLO MOTRIZ MENORES"],
-     "plan_id": 1758, "nombre": "Desarrollo Motriz Menores", "dias": 30}
+    {"powergym": ["PUMP - Prof. Carrion Veronica - 19,.30 hs Lunes - Miércoles y Viernes."],
+     "plan_id": 1790, "nombre": "Body Pump", "dias": 30}
   ],
 
   "formas_pago": {
