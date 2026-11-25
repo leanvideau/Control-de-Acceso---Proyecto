@@ -25,8 +25,10 @@
 
   "formas_pago": {
     "Efectivo": 843,
-    "Transferencia Bancaria": null,
-    "Tarjeta": null,
+    "Transferencia Bancaria": 846,
+    "Transferencia": 846,
+    "Tarjeta": 845,
+    "QR": 847,
     "Otro": null
   }
 }
