@@ -39,9 +39,9 @@ Luego procedemos a probar si el Access Bridge le transmite la conexión al Raspb
 En el sistema le asignamos a cada profesor el rol de personal, para que puedan entrar con su DNI sin ningún problema, y la concedemos a cada uno una cuenta con una contraseña para que tengan sus datos, sus rutinas, la alimentación de sus alumnos, y demás a su disposición.<br>
 Además importamos los datos de los alumnos al nuevo sistema con su membresía correspondiente.
 
+Para la actualización constante de las membresías de los alumnos hice un programa de python con Claude Opus 5.5 que mediante las cookies de sesión se conecte con las 2 plataformas, Power Gym y Gym Flow, revise los últimos alumnos que pagaron en los 2 sistemas y que haga los cambios necesarios automáticamente, siempre y cuando si le soy permiso para hacerlo. <br>
 ## Conexión del hardware
-
-Con el sistema funcionando, pasamos a la parte física. Primero conectamos el relé a la Raspberry: el relé tiene tres bornes de control (DC+, DC− e IN) que van a los pines GPIO de la Pi, y el jumper del relé lo dejamos en **H** (High Level Trigger) para que se active cuando la Pi le manda señal alta.<br>
+Con el sistema funcionando, pasamos a la parte física. Primero conectamos el relé a la Raspberry: el relé tiene tres bornes de control (DC+, DC− e IN) que van a los pines GPIO de la Pi, y el jumper del relé lo dejamos en **H** (High Level Trigger) para que se active cuando la Pi le manda señal alta. (el programa esta subido en este mismo repositorio). <br>
 
 | Pin Raspberry | Función | Borne del relé |
 |---|---|---|
@@ -51,13 +51,17 @@ Con el sistema funcionando, pasamos a la parte física. Primero conectamos el re
 
 El pin 2 le da energía al relé, el pin 9 es la tierra común entre los dos y el pin 11 es la señal con la que la Pi le indica al relé cuándo activarse. De esta forma la Raspberry nunca está en contacto con los 12V de la cerradura: el relé funciona como intermediario entre los dos circuitos.<br>
 
-<!-- foto del cableado -->
+<img width="1600" height="1200" alt="imagen" src="https://github.com/user-attachments/assets/06dd231a-8616-4a9c-8d25-1332d456c668" />
+
 
 Para comprobar que la Pi controla el relé, ejecutamos una prueba que lo activa durante 2 segundos:
 ```bash
 python3 -c "from gpiozero import OutputDevice; from time import sleep; r = OutputDevice(17, active_high=True, initial_value=False); r.on(); sleep(2); r.off()"
 ```
-<!-- video o foto del relé activado -->
+
+
 
 ### Relé → Cerradura magnética
 <!-- se completa al instalar la cerradura: fuente 12V → COM, NC → botón de salida → cerradura -->
+<img width="1332" height="896" alt="imagen" src="https://github.com/user-attachments/assets/6f2abbd2-1db3-4905-b2da-b45a301a9452" />
+
