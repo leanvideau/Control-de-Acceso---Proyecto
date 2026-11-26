@@ -13,7 +13,7 @@ import zipfile
 from pathlib import Path
 
 REPO = "https://github.com/leanvideau/Control-de-Acceso---Proyecto/archive/refs/heads/"
-RAMAS = ["main", "claude/project-thread-hhdgst"]  # primero la principal, si ya se mergeó
+RAMAS = ["main"]
 CARPETA = Path(__file__).parent
 NO_TOCAR = {"config.json", "estado.json"}
 
