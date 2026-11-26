@@ -99,3 +99,27 @@ def test_no_carga_si_ya_vigente(tmp_path, monkeypatch):
 def test_si_digo_que_no_no_carga(tmp_path, monkeypatch):
     posts, reporte = _correr(tmp_path, monkeypatch, None, ["--cargar"], respuesta="n")
     assert posts == [] and "dijiste que no" in reporte
+
+
+def _alumno_sin_actividad(monkeypatch):
+    import sincronizar
+    monkeypatch.setattr(sincronizar, "alumnos_a_revisar",
+                        lambda pg, desde: [Alumno(1, "30000001", "A1", "Sin Actividades", Decimal(0), datetime.now(), None)])
+
+
+def test_sin_actividad_pregunta_plan(tmp_path, monkeypatch):
+    _alumno_sin_actividad(monkeypatch)
+    posts, reporte = _correr(tmp_path, monkeypatch, None, ["--cargar"], respuesta="1")
+    assert len(posts) == 1 and posts[0]["plan_id"] == "1751"
+
+
+def test_sin_actividad_elige_no_cargar(tmp_path, monkeypatch):
+    _alumno_sin_actividad(monkeypatch)
+    posts, reporte = _correr(tmp_path, monkeypatch, None, ["--cargar"], respuesta="0")
+    assert posts == [] and "elegiste no cargarlo" in reporte
+
+
+def test_sin_actividad_modo_prueba(tmp_path, monkeypatch):
+    _alumno_sin_actividad(monkeypatch)
+    posts, reporte = _correr(tmp_path, monkeypatch, None, [])
+    assert posts == [] and "Te va a preguntar el plan" in reporte

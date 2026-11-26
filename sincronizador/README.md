@@ -35,7 +35,8 @@ correr `python sincronizar.py --dias 15` para revisar un período más largo.
 En `config.json`:
 - `planes`: qué plan de GymFlow corresponde a cada combinación de actividades de
   Power Gym (tal cual aparecen en la lista de alumnos; el orden y las tildes no importan).
-  Si un alumno tiene una combinación que no está en la tabla, queda para hacer a mano.
+  Si un alumno no tiene actividades (o tiene una combinación que no está en la tabla),
+  el programa te pregunta con qué plan cargarlo, o si preferís no cargarlo.
 - `formas_pago`: forma de pago de Power Gym → ID del medio de pago en GymFlow
   (`null` = todavía no lo sabemos, esos pagos quedan para hacer a mano).
 - `cash_shift_id` (opcional): turno de caja de GymFlow. Si no usan turnos, no ponerlo.

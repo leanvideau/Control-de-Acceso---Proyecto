@@ -33,17 +33,26 @@ def buscar_plan(actividades: str, planes: list[dict]) -> dict | None:
 class Decision:
     datos: dict | None   # lo que se mandaría a GymFlow; None = hay que hacerlo a mano
     motivo: str          # explicación para el reporte
+    falta_plan: bool = False  # True = todo bien salvo el plan: se le puede preguntar a Lean
 
 
-def decidir(alumno: Alumno, pago: Movimiento, socio: Socio | None, config: dict) -> Decision:
+def planes_gymflow(config: dict) -> list[dict]:
+    """Planes de GymFlow de la tabla, sin repetir, para elegir a mano."""
+    vistos, lista = set(), []
+    for p in config.get("planes", []):
+        if p.get("plan_id") and p["plan_id"] not in vistos:
+            vistos.add(p["plan_id"])
+            lista.append(p)
+    return lista
+
+
+def decidir(alumno: Alumno, pago: Movimiento, socio: Socio | None, config: dict,
+            plan: dict | None = None) -> Decision:
+    """`plan` permite forzar el plan (cuando Lean lo elige a mano)."""
     if not alumno.dni:
         return Decision(None, "Manual: el alumno no tiene DNI en Power Gym")
     if socio is None:
         return Decision(None, "Manual: no está en GymFlow")
-
-    plan = buscar_plan(alumno.actividades, config.get("planes", []))
-    if not plan or not plan.get("plan_id"):
-        return Decision(None, f"Manual: falta equivalencia de plan para '{alumno.actividades}'")
 
     forma_id = config.get("formas_pago", {}).get(pago.forma_pago or "")
     if not forma_id:
@@ -55,6 +64,12 @@ def decidir(alumno: Alumno, pago: Movimiento, socio: Socio | None, config: dict)
     inicio = pago.fecha.date()
     if socio.vence and socio.vence >= inicio:
         return Decision(None, f"Manual: en GymFlow ya está vigente hasta {socio.vence:%d/%m/%Y}")
+
+    if plan is None:
+        plan = buscar_plan(alumno.actividades, config.get("planes", []))
+    if not plan or not plan.get("plan_id"):
+        return Decision(None, f"Elegir plan: en Power Gym figura '{alumno.actividades}'",
+                        falta_plan=True)
 
     fin = inicio + timedelta(days=int(plan.get("dias", 30)))
     monto = f"{pago.monto:.2f}"

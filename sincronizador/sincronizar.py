@@ -28,7 +28,7 @@ from datetime import datetime, timedelta
 from pathlib import Path
 
 from gymflow import GymFlow
-from membresias import decidir
+from membresias import decidir, planes_gymflow
 from powergym import Alumno, Movimiento, PowerGym
 
 CARPETA = Path(__file__).parent
@@ -86,6 +86,21 @@ def confirmar(a: Alumno, m: Movimiento, motivo: str) -> bool:
             return False
 
 
+def elegir_plan(a: Alumno, m: Movimiento, planes: list[dict]) -> dict | None:
+    """Para alumnos sin actividad (o con una sin equivalencia): Lean elige el plan."""
+    print()
+    print(f"  {a.nombre} (DNI {a.dni}) pagó {m.forma_pago} $ {m.monto} el {m.fecha:%d/%m/%Y} ({m.detalle})")
+    print(f"  En Power Gym figura: {a.actividades or 'sin actividades'}")
+    print("  ¿Con qué plan lo cargo en GymFlow?")
+    for i, p in enumerate(planes, 1):
+        print(f"    {i}. {p.get('nombre', p['plan_id'])} ({p.get('dias', 30)} días)")
+    print("    0. No cargarlo (lo hago a mano)")
+    while True:
+        r = input("  Número: ").strip()
+        if r.isdigit() and 0 <= int(r) <= len(planes):
+            return planes[int(r) - 1] if int(r) else None
+
+
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -139,10 +154,20 @@ def main() -> None:
                            f"{socio.vence:%d/%m/%Y}" if socio.vence else "", estado_gf]
 
             decision = decidir(a, m, socio, config)
+            elegido_a_mano = False
+            if decision.falta_plan and args.cargar:
+                plan = elegir_plan(a, m, planes_gymflow(config))
+                if plan:
+                    decision = decidir(a, m, socio, config, plan=plan)
+                    elegido_a_mano = True
+                else:
+                    decision.motivo = "NO cargado (elegiste no cargarlo): " + decision.motivo
             accion = decision.motivo
             if decision.datos is None:
                 n_manual += 1
-            elif args.cargar and not confirmar(a, m, decision.motivo):
+                if decision.falta_plan and not args.cargar:
+                    accion = "Te va a preguntar el plan. " + accion
+            elif args.cargar and not elegido_a_mano and not confirmar(a, m, decision.motivo):
                 accion = "NO cargado (dijiste que no): " + accion
                 n_manual += 1
             elif args.cargar:
