@@ -52,7 +52,12 @@ python sincronizar.py --cargar   # carga, preguntando "¿Lo cargo? [s/n]" en cad
 python sincronizar.py --dias 15 --cargar   # revisar un período más largo
 ```
 
-En Windows también se puede hacer doble clic en `sincronizar.bat`.
+En Windows, con doble clic:
+- `probar.bat`: modo prueba (no toca GymFlow).
+- `sincronizar.bat`: carga de verdad, preguntando sí/no en cada uno.
+
+Los dos primero **se actualizan solos** (`actualizar.py` baja la última versión de
+GitHub) sin tocar `config.json`, `estado.json` ni `reportes/`.
 
 Siempre conviene correr primero el modo prueba y mirar el reporte `_prueba.csv`.
 
