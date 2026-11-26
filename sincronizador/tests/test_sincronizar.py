@@ -44,7 +44,7 @@ CONFIG = {"powergym_url": "u", "powergym_cookie": "c", "gymflow_token": "t",
           "formas_pago": {"Efectivo": 843}}
 
 
-def _correr(tmp_path, monkeypatch, socio_vence, argv, respuesta="s"):
+def _correr(tmp_path, monkeypatch, socio_vence, argv, respuesta="s", config=None):
     import json, sys
     import sincronizar
     from gymflow import Socio
@@ -57,7 +57,7 @@ def _correr(tmp_path, monkeypatch, socio_vence, argv, respuesta="s"):
         def buscar_por_dni(self, dni): return Socio(9, dni, "A1", "Plan X", "active", "paid", socio_vence, False)
         def crear_membresia(self, datos): posts.append(datos); return {"ok": True}
 
-    (tmp_path / "config.json").write_text(json.dumps(CONFIG))
+    (tmp_path / "config.json").write_text(json.dumps(config or CONFIG))
     monkeypatch.setattr(sincronizar, "CONFIG", tmp_path / "config.json")
     monkeypatch.setattr(sincronizar, "ESTADO", tmp_path / "estado.json")
     monkeypatch.setattr(sincronizar, "REPORTES", tmp_path / "reportes")
@@ -130,7 +130,7 @@ def test_sin_actividad_elige_no_cargar(tmp_path, monkeypatch):
 def test_sin_actividad_modo_prueba(tmp_path, monkeypatch):
     _alumno_sin_actividad(monkeypatch)
     posts, reporte = _correr(tmp_path, monkeypatch, None, [])
-    assert posts == [] and "Te va a preguntar el plan" in reporte
+    assert posts == [] and "Te va a preguntar" in reporte
 
 
 def test_los_que_no_estan_van_a_archivo_aparte(tmp_path, monkeypatch):
@@ -156,3 +156,20 @@ def test_los_que_no_estan_van_a_archivo_aparte(tmp_path, monkeypatch):
     agregar = archivos["alumnos_para_agregar"].read_text(encoding="utf-8-sig")
     assert "30000001" in agregar and "Musculación" not in agregar  # plan sin nombre en CONFIG de test
     assert "1751" in agregar
+
+
+def test_forma_otro_pregunta(tmp_path, monkeypatch):
+    import sincronizar
+    pago_otro = Movimiento(500, datetime.now(), True, "x", "Caja", "Otro", Decimal(1000), None)
+    monkeypatch.setattr(sincronizar, "pagos_nuevos", lambda pg, al, u, d: [(al[0], pago_otro)])
+    conf = dict(CONFIG, formas_pago={"Efectivo": 843, "Transferencia": 846, "Otro": None})
+    posts, reporte = _correr(tmp_path, monkeypatch, None, ["--cargar"], respuesta=["2", "s"], config=conf)
+    assert len(posts) == 1 and posts[0]["cash_payment_method_id"] == 846
+
+
+def test_forma_otro_elige_no_cargar(tmp_path, monkeypatch):
+    import sincronizar
+    pago_otro = Movimiento(500, datetime.now(), True, "x", "Caja", "Otro", Decimal(1000), None)
+    monkeypatch.setattr(sincronizar, "pagos_nuevos", lambda pg, al, u, d: [(al[0], pago_otro)])
+    posts, reporte = _correr(tmp_path, monkeypatch, None, ["--cargar"], respuesta=["0"])
+    assert posts == [] and "elegiste no cargarlo" in reporte

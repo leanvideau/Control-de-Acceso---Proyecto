@@ -28,7 +28,7 @@ from datetime import datetime, timedelta
 from pathlib import Path
 
 from gymflow import GymFlow
-from membresias import buscar_plan, decidir, planes_gymflow
+from membresias import buscar_plan, decidir, formas_gymflow, planes_gymflow
 from powergym import Alumno, Movimiento, PowerGym
 
 CARPETA = Path(__file__).parent
@@ -121,6 +121,21 @@ def escribir_para_agregar(ruta: Path, faltantes: list[tuple[Alumno, Movimiento]]
                         vence, m.detalle])
 
 
+def elegir_forma(a: Alumno, m: Movimiento, formas: list[tuple[str, int]]) -> int | None:
+    """Cuando en Power Gym la forma de pago es "Otro" (o no tiene equivalencia)."""
+    print()
+    print(f"  {a.nombre} (DNI {a.dni}) pagó $ {m.monto} el {m.fecha:%d/%m/%Y} ({m.detalle})")
+    print(f"  En Power Gym la forma de pago figura: {m.forma_pago or 'sin forma'}")
+    print("  ¿Qué forma de pago pongo en GymFlow?")
+    for i, (nombre, _) in enumerate(formas, 1):
+        print(f"    {i}. {nombre}")
+    print("    0. No cargarlo (lo hago a mano)")
+    while True:
+        r = input("  Número: ").strip()
+        if r.isdigit() and 0 <= int(r) <= len(formas):
+            return formas[int(r) - 1][1] if int(r) else None
+
+
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -177,17 +192,24 @@ def main() -> None:
                            f"{socio.vence:%d/%m/%Y}" if socio.vence else "", estado_gf]
 
             decision = decidir(a, m, socio, config)
-            if decision.falta_plan and args.cargar:
-                plan = elegir_plan(a, m, planes_gymflow(config))
-                if plan:
-                    decision = decidir(a, m, socio, config, plan=plan)
+            plan_elegido, forma_elegida = None, None
+            while args.cargar and (decision.falta_plan or decision.falta_forma):
+                if decision.falta_plan:
+                    plan_elegido = elegir_plan(a, m, planes_gymflow(config))
+                    elegido = plan_elegido
                 else:
+                    forma_elegida = elegir_forma(a, m, formas_gymflow(config))
+                    elegido = forma_elegida
+                if not elegido:
                     decision.motivo = "NO cargado (elegiste no cargarlo): " + decision.motivo
+                    decision.falta_plan = decision.falta_forma = False
+                    break
+                decision = decidir(a, m, socio, config, plan=plan_elegido, forma_id=forma_elegida)
             accion = decision.motivo
             if decision.datos is None:
                 n_manual += 1
-                if decision.falta_plan and not args.cargar:
-                    accion = "Te va a preguntar el plan. " + accion
+                if (decision.falta_plan or decision.falta_forma) and not args.cargar:
+                    accion = "Te va a preguntar. " + accion
             elif args.cargar and not confirmar(a, m, decision.motivo):
                 accion = "NO cargado (dijiste que no): " + accion
                 n_manual += 1

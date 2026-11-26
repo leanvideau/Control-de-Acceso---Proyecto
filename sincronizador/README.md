@@ -41,7 +41,8 @@ En `config.json`:
   Si un alumno no tiene actividades (o tiene una combinación que no está en la tabla),
   el programa te pregunta con qué plan cargarlo, o si preferís no cargarlo.
 - `formas_pago`: forma de pago de Power Gym → ID del medio de pago en GymFlow
-  (`null` = todavía no lo sabemos, esos pagos quedan para hacer a mano).
+  Si en Power Gym figura "Otro" (o una sin equivalencia), el programa te pregunta
+  qué forma de pago poner.
 - `cash_shift_id` (opcional): turno de caja de GymFlow. Si no usan turnos, no ponerlo.
 
 ## Uso

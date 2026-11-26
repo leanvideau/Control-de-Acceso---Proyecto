@@ -33,7 +33,8 @@ def buscar_plan(actividades: str, planes: list[dict]) -> dict | None:
 class Decision:
     datos: dict | None   # lo que se mandaría a GymFlow; None = hay que hacerlo a mano
     motivo: str          # explicación para el reporte
-    falta_plan: bool = False  # True = todo bien salvo el plan: se le puede preguntar a Lean
+    falta_plan: bool = False   # True = falta el plan: se le puede preguntar a Lean
+    falta_forma: bool = False  # True = falta la forma de pago ("Otro"): se le puede preguntar
 
 
 def planes_gymflow(config: dict) -> list[dict]:
@@ -46,17 +47,23 @@ def planes_gymflow(config: dict) -> list[dict]:
     return lista
 
 
+def formas_gymflow(config: dict) -> list[tuple[str, int]]:
+    """Formas de pago de GymFlow (nombre, id) sin repetir, para elegir a mano."""
+    vistos, lista = set(), []
+    for nombre, id_ in config.get("formas_pago", {}).items():
+        if id_ and id_ not in vistos:
+            vistos.add(id_)
+            lista.append((nombre, int(id_)))
+    return lista
+
+
 def decidir(alumno: Alumno, pago: Movimiento, socio: Socio | None, config: dict,
-            plan: dict | None = None) -> Decision:
-    """`plan` permite forzar el plan (cuando Lean lo elige a mano)."""
+            plan: dict | None = None, forma_id: int | None = None) -> Decision:
+    """`plan` y `forma_id` permiten forzarlos (cuando Lean los elige a mano)."""
     if not alumno.dni:
         return Decision(None, "Manual: el alumno no tiene DNI en Power Gym")
     if socio is None:
         return Decision(None, "Manual: no está en GymFlow")
-
-    forma_id = config.get("formas_pago", {}).get(pago.forma_pago or "")
-    if not forma_id:
-        return Decision(None, f"Manual: falta equivalencia de forma de pago '{pago.forma_pago}'")
 
     if not pago.monto or pago.monto <= 0:
         return Decision(None, "Manual: el pago no tiene monto")
@@ -70,6 +77,12 @@ def decidir(alumno: Alumno, pago: Movimiento, socio: Socio | None, config: dict,
     if not plan or not plan.get("plan_id"):
         return Decision(None, f"Elegir plan: en Power Gym figura '{alumno.actividades}'",
                         falta_plan=True)
+
+    if forma_id is None:
+        forma_id = config.get("formas_pago", {}).get(pago.forma_pago or "")
+    if not forma_id:
+        return Decision(None, f"Elegir forma de pago: en Power Gym figura '{pago.forma_pago or 'sin forma'}'",
+                        falta_forma=True)
 
     fin = inicio + timedelta(days=int(plan.get("dias", 30)))
     monto = f"{pago.monto:.2f}"
