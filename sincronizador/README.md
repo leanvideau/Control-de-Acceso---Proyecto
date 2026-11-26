@@ -19,7 +19,7 @@ que en GymFlow ya figura vigente, etc.) queda en un reporte para hacerlo a mano.
    - si no → carga una membresía desde la fecha del pago por los meses del plan, con
      el monto pagado.
 5. Los alumnos que pagaron pero **no están en GymFlow** van además a un archivo aparte,
-   `reportes/alumnos_para_agregar_<fecha>.csv`, con DNI, nombre, teléfono, plan
+   la hoja **Alumnos para agregar** del Excel, con DNI, nombre, teléfono, plan
    sugerido, pago y vencimiento sugerido, para darlos de alta a mano.
 6. Deja un reporte por corrida en `reportes/` (se abre con Excel) y guarda en
    `estado.json` hasta qué pago llegó, para no cargar nada dos veces.
@@ -60,7 +60,10 @@ En Windows, con doble clic:
 Los dos primero **se actualizan solos** (`actualizar.py` baja la última versión de
 GitHub) sin tocar `config.json`, `estado.json` ni `reportes/`.
 
-Siempre conviene correr primero el modo prueba y mirar el reporte `_prueba.csv`.
+Siempre conviene correr primero el modo prueba y mirar el Excel `reportes/reporte_<fecha>_prueba.xlsx`:
+- hoja **Resumen**: cuántos pagos hay de cada tipo y qué significa cada color;
+- hoja **Pagos**: un renglón por pago, la primera columna dice qué va a pasar;
+- hoja **Alumnos para agregar**: los que no existen en GymFlow.
 
 ## Tests
 

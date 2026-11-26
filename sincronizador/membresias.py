@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import unicodedata
 from dataclasses import dataclass
-from datetime import date, timedelta
+from datetime import timedelta
 
 from gymflow import Socio
 from powergym import Alumno, Movimiento
@@ -61,27 +61,27 @@ def decidir(alumno: Alumno, pago: Movimiento, socio: Socio | None, config: dict,
             plan: dict | None = None, forma_id: int | None = None) -> Decision:
     """`plan` y `forma_id` permiten forzarlos (cuando Lean los elige a mano)."""
     if not alumno.dni:
-        return Decision(None, "Manual: el alumno no tiene DNI en Power Gym")
+        return Decision(None, "A MANO: no tiene DNI en Power Gym, buscalo por nombre en GymFlow")
     if socio is None:
-        return Decision(None, "Manual: no está en GymFlow")
+        return Decision(None, "A MANO: no existe en GymFlow, dalo de alta (ver hoja 'Alumnos para agregar')")
 
     if not pago.monto or pago.monto <= 0:
-        return Decision(None, "Manual: el pago no tiene monto")
+        return Decision(None, "A MANO: el pago no tiene monto, revisalo en Power Gym")
 
     inicio = pago.fecha.date()
     if socio.vence and socio.vence >= inicio:
-        return Decision(None, f"Manual: en GymFlow ya está vigente hasta {socio.vence:%d/%m/%Y}")
+        return Decision(None, f"NADA: en GymFlow ya está al día hasta el {socio.vence:%d/%m/%Y}")
 
     if plan is None:
         plan = buscar_plan(alumno.actividades, config.get("planes", []))
     if not plan or not plan.get("plan_id"):
-        return Decision(None, f"Elegir plan: en Power Gym figura '{alumno.actividades}'",
+        return Decision(None, f"TE PREGUNTA el plan (en Power Gym figura '{alumno.actividades}')",
                         falta_plan=True)
 
     if forma_id is None:
         forma_id = config.get("formas_pago", {}).get(pago.forma_pago or "")
     if not forma_id:
-        return Decision(None, f"Elegir forma de pago: en Power Gym figura '{pago.forma_pago or 'sin forma'}'",
+        return Decision(None, f"TE PREGUNTA la forma de pago (en Power Gym figura '{pago.forma_pago or 'sin forma'}')",
                         falta_forma=True)
 
     fin = inicio + timedelta(days=int(plan.get("dias", 30)))
@@ -101,4 +101,4 @@ def decidir(alumno: Alumno, pago: Movimiento, socio: Socio | None, config: dict,
     }
     if config.get("cash_shift_id"):
         datos["cash_shift_id"] = int(config["cash_shift_id"])
-    return Decision(datos, f"Cargar '{plan.get('nombre', plan['plan_id'])}' del {inicio:%d/%m/%Y} al {fin:%d/%m/%Y} por $ {monto}")
+    return Decision(datos, f"'{plan.get('nombre', plan['plan_id'])}' del {inicio:%d/%m/%Y} al {fin:%d/%m/%Y} por $ {monto}")

@@ -2,7 +2,7 @@
 
 Por cada pago busca al alumno por DNI en GymFlow y, si está todo claro, le carga
 la membresía con el pago. Lo que no se puede decidir solo queda en el reporte
-(carpeta reportes/) para hacerlo a mano.
+(Excel en la carpeta reportes/) para hacerlo a mano.
 
 Uso:
     python sincronizar.py                    # MODO PRUEBA: solo muestra qué haría
@@ -22,7 +22,6 @@ Configuración en config.json (NO subirlo a ningún lado, tiene la sesión):
 from __future__ import annotations
 
 import argparse
-import csv
 import json
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -30,11 +29,12 @@ from pathlib import Path
 from gymflow import GymFlow
 from membresias import buscar_plan, decidir, formas_gymflow, planes_gymflow
 from powergym import Alumno, Movimiento, PowerGym
+from reporte import CATEGORIAS, Fila, escribir as escribir_reporte
 
 CARPETA = Path(__file__).parent
 CONFIG = CARPETA / "config.json"
 ESTADO = CARPETA / "estado.json"
-REPORTES = CARPETA / "reportes"   # un CSV por corrida, para no perder nada
+REPORTES = CARPETA / "reportes"   # un Excel por corrida, para no perder nada
 
 # La lista de Power Gym ordena por última visita, no por último pago. Un alumno puede
 # pagar sin venir ese día, así que miramos un margen extra hacia atrás.
@@ -101,24 +101,19 @@ def elegir_plan(a: Alumno, m: Movimiento, planes: list[dict]) -> dict | None:
             return planes[int(r) - 1] if int(r) else None
 
 
-def escribir_para_agregar(ruta: Path, faltantes: list[tuple[Alumno, Movimiento]],
-                          config: dict) -> None:
+def filas_para_agregar(faltantes: list[tuple[Alumno, Movimiento]], config: dict) -> list[list]:
     """Alumnos que pagaron en Power Gym pero no están en GymFlow, para cargarlos a mano."""
-    with ruta.open("w", newline="", encoding="utf-8-sig") as f:
-        w = csv.writer(f, delimiter=";")
-        w.writerow(["DNI", "Nombre", "Teléfono", "Actividades en Power Gym",
-                    "Plan sugerido en GymFlow", "Fecha pago", "Monto", "Forma de pago",
-                    "Vence (sugerido)", "Detalle del pago"])
-        for a, m in faltantes:
-            plan = buscar_plan(a.actividades, config.get("planes", []))
-            nombre_plan, vence = "ELEGIR", ""
-            if plan:
-                nombre_plan = plan.get("nombre", str(plan["plan_id"]))
-                vence = f"{m.fecha.date() + timedelta(days=int(plan.get('dias', 30))):%d/%m/%Y}"
-            w.writerow([a.dni or "SIN DNI", a.nombre, a.telefono or "", a.actividades,
-                        nombre_plan, f"{m.fecha:%d/%m/%Y}",
-                        str(m.monto or "").replace(".", ","), m.forma_pago or "",
-                        vence, m.detalle])
+    filas = []
+    for a, m in faltantes:
+        plan = buscar_plan(a.actividades, config.get("planes", []))
+        nombre_plan, vence = "ELEGIR", None
+        if plan:
+            nombre_plan = plan.get("nombre", str(plan["plan_id"]))
+            vence = m.fecha.date() + timedelta(days=int(plan.get("dias", 30)))
+        filas.append([a.dni or "SIN DNI", a.nombre, a.telefono or "", a.actividades,
+                      nombre_plan, m.fecha.date(), float(m.monto) if m.monto else None,
+                      m.forma_pago or "", vence, m.detalle])
+    return filas
 
 
 def elegir_forma(a: Alumno, m: Movimiento, formas: list[tuple[str, int]]) -> int | None:
@@ -168,75 +163,64 @@ def main() -> None:
           "MODO PRUEBA: no se toca GymFlow (usar --cargar para cargar)")
 
     REPORTES.mkdir(exist_ok=True)
-    reporte = REPORTES / f"pagos_{ahora:%Y-%m-%d_%H%M}{'' if args.cargar else '_prueba'}.csv"
+    reporte = REPORTES / f"reporte_{ahora:%Y-%m-%d_%H%M}{'' if args.cargar else '_prueba'}.xlsx"
     socios: dict = {}
     faltantes: list[tuple[Alumno, Movimiento]] = []
-    n_cargados = n_manual = 0
-    with reporte.open("w", newline="", encoding="utf-8-sig") as f:
-        w = csv.writer(f, delimiter=";")
-        w.writerow(["DNI", "Alumno", "Actividades", "Fecha pago", "Detalle",
-                    "Forma de pago", "Monto", "Saldo actual", "ID movimiento",
-                    "GymFlow: plan", "GymFlow: vence", "GymFlow: estado", "Acción"])
-        for a, m in nuevos:
-            socio = None
-            if a.dni:
-                if a.dni not in socios:
-                    socios[a.dni] = gf.buscar_por_dni(a.dni)
-                socio = socios[a.dni]
-            gf_cols = ["", "", "NO ESTÁ EN GYMFLOW"]
-            if socio is None:
-                faltantes.append((a, m))
-            if socio:
-                estado_gf = "debe" if socio.debe else (socio.estado_pago or "")
-                gf_cols = [socio.plan or "",
-                           f"{socio.vence:%d/%m/%Y}" if socio.vence else "", estado_gf]
+    filas: list[Fila] = []
+    for a, m in nuevos:
+        socio = None
+        if a.dni:
+            if a.dni not in socios:
+                socios[a.dni] = gf.buscar_por_dni(a.dni)
+            socio = socios[a.dni]
+        if socio is None:
+            faltantes.append((a, m))
+            en_gymflow = "No existe"
+        else:
+            en_gymflow = socio.plan or "Sin plan"
+            if socio.vence:
+                en_gymflow += f", vence {socio.vence:%d/%m/%Y}"
+            if socio.debe:
+                en_gymflow += " (debe)"
 
-            decision = decidir(a, m, socio, config)
-            plan_elegido, forma_elegida = None, None
-            while args.cargar and (decision.falta_plan or decision.falta_forma):
-                if decision.falta_plan:
-                    plan_elegido = elegir_plan(a, m, planes_gymflow(config))
-                    elegido = plan_elegido
-                else:
-                    forma_elegida = elegir_forma(a, m, formas_gymflow(config))
-                    elegido = forma_elegida
-                if not elegido:
-                    decision.motivo = "NO cargado (elegiste no cargarlo): " + decision.motivo
-                    decision.falta_plan = decision.falta_forma = False
-                    break
-                decision = decidir(a, m, socio, config, plan=plan_elegido, forma_id=forma_elegida)
-            accion = decision.motivo
-            if decision.datos is None:
-                n_manual += 1
-                if (decision.falta_plan or decision.falta_forma) and not args.cargar:
-                    accion = "Te va a preguntar. " + accion
-            elif args.cargar and not confirmar(a, m, decision.motivo):
-                accion = "NO cargado (dijiste que no): " + accion
-                n_manual += 1
-            elif args.cargar:
-                try:
-                    gf.crear_membresia(decision.datos)
-                    cargados.add(m.id)
-                    n_cargados += 1
-                    accion = "CARGADO: " + accion
-                    socios.pop(a.dni, None)  # que la próxima búsqueda vea la membresía nueva
-                except Exception as e:  # seguimos con los demás y queda en el reporte
-                    accion = f"ERROR al cargar: {e}"
-                    n_manual += 1
+        decision = decidir(a, m, socio, config)
+        plan_elegido, forma_elegida = None, None
+        cancelado = False
+        while args.cargar and (decision.falta_plan or decision.falta_forma):
+            if decision.falta_plan:
+                plan_elegido = elegir_plan(a, m, planes_gymflow(config))
+                elegido = plan_elegido
             else:
-                accion = "Se cargaría: " + accion
+                forma_elegida = elegir_forma(a, m, formas_gymflow(config))
+                elegido = forma_elegida
+            if not elegido:
+                cancelado = True
+                break
+            decision = decidir(a, m, socio, config, plan=plan_elegido, forma_id=forma_elegida)
 
-            w.writerow([a.dni or "SIN DNI", a.nombre, a.actividades,
-                        f"{m.fecha:%d/%m/%Y}", m.detalle, m.forma_pago or "",
-                        str(m.monto or "").replace(".", ","),
-                        str(a.saldo or "").replace(".", ","), m.id, *gf_cols, accion])
+        if cancelado:
+            categoria, que_pasa = "NO CARGADO", "No cargado: elegiste no cargarlo"
+        elif decision.datos is None:
+            categoria = next((c for c in CATEGORIAS if decision.motivo.startswith(c)), "A MANO")
+            que_pasa = decision.motivo
+        elif not args.cargar:
+            categoria, que_pasa = "SE CARGA", "SE CARGA: " + decision.motivo
+        elif not confirmar(a, m, decision.motivo):
+            categoria, que_pasa = "NO CARGADO", "No cargado: dijiste que no (" + decision.motivo + ")"
+        else:
+            try:
+                gf.crear_membresia(decision.datos)
+                cargados.add(m.id)
+                socios.pop(a.dni, None)  # que la próxima búsqueda vea la membresía nueva
+                categoria, que_pasa = "CARGADO", "CARGADO: " + decision.motivo
+            except Exception as e:  # seguimos con los demás y queda en el reporte
+                categoria, que_pasa = "ERROR", f"ERROR al cargar: {e}"
 
-    print(f"Pagos nuevos: {len(nuevos)} | cargados: {n_cargados} | "
-          f"para hacer a mano: {n_manual} -> {reporte}")
-    if faltantes:
-        para_agregar = reporte.with_name(reporte.name.replace("pagos_", "alumnos_para_agregar_"))
-        escribir_para_agregar(para_agregar, faltantes, config)
-        print(f"Alumnos que no están en GymFlow: {len(faltantes)} -> {para_agregar}")
+        filas.append(Fila(categoria, que_pasa, a.nombre, a.dni or "SIN DNI", m.fecha, m.monto,
+                          m.forma_pago or "", a.actividades, en_gymflow, m.detalle))
+
+    escribir_reporte(reporte, filas, filas_para_agregar(faltantes, config), not args.cargar)
+    print(f"Pagos nuevos: {len(nuevos)}. Reporte: {reporte}")
 
     # En modo prueba no avanzamos el marcador, así la corrida real ve los mismos pagos.
     if args.cargar:

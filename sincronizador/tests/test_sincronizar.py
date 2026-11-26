@@ -68,13 +68,20 @@ def _correr(tmp_path, monkeypatch, socio_vence, argv, respuesta="s", config=None
     monkeypatch.setattr("builtins.input",
                         lambda *_: respuestas.pop(0) if respuestas is not None else respuesta)
     sincronizar.main()
-    reporte = next((tmp_path / "reportes").iterdir()).read_text(encoding="utf-8-sig")
-    return posts, reporte
+    return posts, leer_xlsx(next((tmp_path / "reportes").iterdir()))
+
+
+def leer_xlsx(ruta):
+    """Todo el texto del Excel, para buscar con 'in'."""
+    from openpyxl import load_workbook
+    wb = load_workbook(ruta)
+    return "\n".join(" | ".join(str(c) for c in fila if c is not None)
+                     for ws in wb for fila in ws.iter_rows(values_only=True))
 
 
 def test_modo_prueba_no_carga(tmp_path, monkeypatch):
     posts, reporte = _correr(tmp_path, monkeypatch, None, [])
-    assert posts == [] and "Se cargaría" in reporte and "30000001" in reporte
+    assert posts == [] and "SE CARGA" in reporte and "30000001" in reporte
     assert not (tmp_path / "estado.json").exists()
 
 
@@ -95,7 +102,7 @@ def test_carga_y_no_repite(tmp_path, monkeypatch):
 def test_no_carga_si_ya_vigente(tmp_path, monkeypatch):
     from datetime import date, timedelta
     posts, reporte = _correr(tmp_path, monkeypatch, date.today() + timedelta(days=10), ["--cargar"])
-    assert posts == [] and "ya está vigente" in reporte
+    assert posts == [] and "ya está al día" in reporte
 
 
 def test_si_digo_que_no_no_carga(tmp_path, monkeypatch):
@@ -130,7 +137,7 @@ def test_sin_actividad_elige_no_cargar(tmp_path, monkeypatch):
 def test_sin_actividad_modo_prueba(tmp_path, monkeypatch):
     _alumno_sin_actividad(monkeypatch)
     posts, reporte = _correr(tmp_path, monkeypatch, None, [])
-    assert posts == [] and "Te va a preguntar" in reporte
+    assert posts == [] and "TE PREGUNTA el plan" in reporte
 
 
 def test_los_que_no_estan_van_a_archivo_aparte(tmp_path, monkeypatch):
@@ -152,10 +159,11 @@ def test_los_que_no_estan_van_a_archivo_aparte(tmp_path, monkeypatch):
     monkeypatch.setattr(sincronizar, "GymFlow", FakeGF)
     monkeypatch.setattr(sys, "argv", ["sincronizar.py"])
     sincronizar.main()
-    archivos = {p.name.split("_2")[0]: p for p in (tmp_path / "reportes").iterdir()}
-    agregar = archivos["alumnos_para_agregar"].read_text(encoding="utf-8-sig")
-    assert "30000001" in agregar and "Musculación" not in agregar  # plan sin nombre en CONFIG de test
-    assert "1751" in agregar
+    from openpyxl import load_workbook
+    wb = load_workbook(next((tmp_path / "reportes").iterdir()))
+    agregar = [f for f in wb["Alumnos para agregar"].iter_rows(values_only=True)]
+    assert agregar[1][0] == "30000001" and agregar[1][4] == "1751"
+    assert "no existen en GymFlow" in leer_xlsx(next((tmp_path / "reportes").iterdir()))
 
 
 def test_forma_otro_pregunta(tmp_path, monkeypatch):
