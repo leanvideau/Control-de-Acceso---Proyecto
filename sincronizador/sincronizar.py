@@ -201,7 +201,6 @@ def main() -> None:
                 socios[a.dni] = gf.buscar_por_dni(a.dni)
             socio = socios[a.dni]
         if socio is None:
-            faltantes.append((a, m))
             en_gymflow = "No existe"
         else:
             en_gymflow = socio.plan or "Sin plan"
@@ -243,6 +242,8 @@ def main() -> None:
             except Exception as e:  # seguimos con los demás y queda en el reporte
                 categoria, que_pasa = "ERROR", f"ERROR al cargar: {e}"
 
+        if socio is None and categoria != "NO ES CUOTA":
+            faltantes.append((a, m))
         filas.append(Fila(categoria, que_pasa, a.nombre, a.dni or "SIN DNI", m.fecha, m.monto,
                           m.forma_pago or "", a.actividades, en_gymflow, m.detalle))
 

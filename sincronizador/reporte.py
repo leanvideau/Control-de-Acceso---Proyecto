@@ -18,6 +18,7 @@ CATEGORIAS = {
     "NADA":        ("DDEBF7", "No hay que hacer nada: en GymFlow ya está al día."),
     "A MANO":      ("FFC7CE", "Lo tenés que hacer vos en GymFlow (dice por qué)."),
     "NO CARGADO":  ("EDEDED", "Elegiste no cargarlo."),
+    "NO ES CUOTA": ("EDEDED", "Monto chico (agua, bebidas, etc.): no es una cuota, no se carga."),
     "ERROR":       ("FFC7CE", "Falló al cargar: revisalo a mano."),
 }
 

@@ -3,6 +3,7 @@
   "powergym_cookie": "PEGAR ACÁ EL VALOR DE powergym_session",
   "gymflow_url": "https://sistema.gymflow.com.ar",
   "gymflow_token": "PEGAR ACÁ EL VALOR DE gf_token",
+  "monto_minimo_cuota": 10000,
 
   "planes": [
     {"powergym": ["MUSCULACION 2026"],

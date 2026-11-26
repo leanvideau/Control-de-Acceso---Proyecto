@@ -43,6 +43,8 @@ En `config.json`:
 - `formas_pago`: forma de pago de Power Gym → ID del medio de pago en GymFlow
   Si en Power Gym figura "Otro" (o una sin equivalencia), el programa te pregunta
   qué forma de pago poner.
+- `monto_minimo_cuota` (opcional, por defecto 10000): los pagos por debajo de este monto
+  se toman como ventas (agua, bebidas) y no se cargan; salen como "NO ES CUOTA".
 - `cash_shift_id` (opcional): turno de caja de GymFlow. Si no usan turnos, no ponerlo.
 
 ## Uso

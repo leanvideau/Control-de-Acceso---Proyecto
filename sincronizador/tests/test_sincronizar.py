@@ -10,7 +10,7 @@ def alumno(id_, visita):
 
 
 def mov(id_, fecha, pago=True):
-    return Movimiento(id_, fecha, pago, "x", "Caja", "Efectivo" if pago else None, Decimal(1000), None)
+    return Movimiento(id_, fecha, pago, "x", "Caja", "Efectivo" if pago else None, Decimal(40000), None)
 
 
 class FakePG:
@@ -89,7 +89,7 @@ def test_carga_y_no_repite(tmp_path, monkeypatch):
     import json, shutil
     posts, reporte = _correr(tmp_path, monkeypatch, None, ["--cargar"])
     assert len(posts) == 1 and posts[0]["plan_id"] == "1751" and posts[0]["member_id"] == 9
-    assert posts[0]["cash_payment_method_id"] == 843 and posts[0]["amount_paid"] == "1000.00"
+    assert posts[0]["cash_payment_method_id"] == 843 and posts[0]["amount_paid"] == "40000.00"
     assert "CARGADO" in reporte and "cash_shift_id" not in posts[0]
     from datetime import date, timedelta
     assert posts[0]["end_date"] == (date.today() + timedelta(days=30)).isoformat()
@@ -168,7 +168,7 @@ def test_los_que_no_estan_van_a_archivo_aparte(tmp_path, monkeypatch):
 
 def test_forma_otro_pregunta(tmp_path, monkeypatch):
     import sincronizar
-    pago_otro = Movimiento(500, datetime.now(), True, "x", "Caja", "Otro", Decimal(1000), None)
+    pago_otro = Movimiento(500, datetime.now(), True, "x", "Caja", "Otro", Decimal(40000), None)
     monkeypatch.setattr(sincronizar, "pagos_nuevos", lambda pg, al, u, d: [(al[0], pago_otro)])
     conf = dict(CONFIG, formas_pago={"Efectivo": 843, "Transferencia": 846, "Otro": None})
     posts, reporte = _correr(tmp_path, monkeypatch, None, ["--cargar"], respuesta=["2", "s"], config=conf)
@@ -177,7 +177,7 @@ def test_forma_otro_pregunta(tmp_path, monkeypatch):
 
 def test_forma_otro_elige_no_cargar(tmp_path, monkeypatch):
     import sincronizar
-    pago_otro = Movimiento(500, datetime.now(), True, "x", "Caja", "Otro", Decimal(1000), None)
+    pago_otro = Movimiento(500, datetime.now(), True, "x", "Caja", "Otro", Decimal(40000), None)
     monkeypatch.setattr(sincronizar, "pagos_nuevos", lambda pg, al, u, d: [(al[0], pago_otro)])
     posts, reporte = _correr(tmp_path, monkeypatch, None, ["--cargar"], respuesta=["0"])
     assert posts == [] and "elegiste no cargarlo" in reporte
@@ -193,3 +193,11 @@ def test_menu_de_dias(monkeypatch):
     assert preguntar_dias(False) == 45
     r = iter(["1"]); monkeypatch.setattr("builtins.input", lambda *_: next(r))
     assert preguntar_dias(False) == 7
+
+
+def test_monto_chico_no_es_cuota(tmp_path, monkeypatch):
+    import sincronizar
+    agua = Movimiento(500, datetime.now(), True, "agua", "Caja", "Efectivo", Decimal(2000), None)
+    monkeypatch.setattr(sincronizar, "pagos_nuevos", lambda pg, al, u, d: [(al[0], agua)])
+    posts, reporte = _correr(tmp_path, monkeypatch, None, ["--cargar"], respuesta="s")
+    assert posts == [] and "NO ES CUOTA" in reporte

@@ -5,6 +5,7 @@ from __future__ import annotations
 import unicodedata
 from dataclasses import dataclass
 from datetime import timedelta
+from decimal import Decimal
 
 from gymflow import Socio
 from powergym import Alumno, Movimiento
@@ -27,6 +28,11 @@ def buscar_plan(actividades: str, planes: list[dict]) -> dict | None:
         if actividades_de(", ".join(plan["powergym"])) == clave:
             return plan
     return None
+
+
+# Pagos por debajo de esto no son cuotas (agua, bebidas, etc.). El plan más barato
+# hoy está en $ 15.000 y con descuentos/pagos parciales vimos desde ~$ 30.000.
+MONTO_MINIMO_CUOTA = 10000
 
 
 @dataclass
@@ -60,6 +66,10 @@ def formas_gymflow(config: dict) -> list[tuple[str, int]]:
 def decidir(alumno: Alumno, pago: Movimiento, socio: Socio | None, config: dict,
             plan: dict | None = None, forma_id: int | None = None) -> Decision:
     """`plan` y `forma_id` permiten forzarlos (cuando Lean los elige a mano)."""
+    minimo = Decimal(str(config.get("monto_minimo_cuota", MONTO_MINIMO_CUOTA)))
+    if pago.monto is not None and 0 < pago.monto < minimo:
+        return Decision(None, f"NO ES CUOTA: $ {pago.monto:.2f} es menos de $ {minimo:.0f} "
+                              f"(parece una venta, ej. agua); no se carga")
     if not alumno.dni:
         return Decision(None, "A MANO: no tiene DNI en Power Gym, buscalo por nombre en GymFlow")
     if socio is None:
