@@ -64,7 +64,9 @@ def _correr(tmp_path, monkeypatch, socio_vence, argv, respuesta="s"):
     monkeypatch.setattr(sincronizar, "PowerGym", lambda *a: pg)
     monkeypatch.setattr(sincronizar, "GymFlow", FakeGF)
     monkeypatch.setattr(sys, "argv", ["sincronizar.py", *argv])
-    monkeypatch.setattr("builtins.input", lambda *_: respuesta)
+    respuestas = list(respuesta) if isinstance(respuesta, list) else None
+    monkeypatch.setattr("builtins.input",
+                        lambda *_: respuestas.pop(0) if respuestas is not None else respuesta)
     sincronizar.main()
     reporte = next((tmp_path / "reportes").iterdir()).read_text(encoding="utf-8-sig")
     return posts, reporte
@@ -109,8 +111,14 @@ def _alumno_sin_actividad(monkeypatch):
 
 def test_sin_actividad_pregunta_plan(tmp_path, monkeypatch):
     _alumno_sin_actividad(monkeypatch)
-    posts, reporte = _correr(tmp_path, monkeypatch, None, ["--cargar"], respuesta="1")
+    posts, reporte = _correr(tmp_path, monkeypatch, None, ["--cargar"], respuesta=["1", "s"])
     assert len(posts) == 1 and posts[0]["plan_id"] == "1751"
+
+
+def test_sin_actividad_elige_plan_pero_dice_que_no(tmp_path, monkeypatch):
+    _alumno_sin_actividad(monkeypatch)
+    posts, reporte = _correr(tmp_path, monkeypatch, None, ["--cargar"], respuesta=["1", "n"])
+    assert posts == [] and "dijiste que no" in reporte
 
 
 def test_sin_actividad_elige_no_cargar(tmp_path, monkeypatch):

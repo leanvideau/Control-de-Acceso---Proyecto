@@ -154,12 +154,10 @@ def main() -> None:
                            f"{socio.vence:%d/%m/%Y}" if socio.vence else "", estado_gf]
 
             decision = decidir(a, m, socio, config)
-            elegido_a_mano = False
             if decision.falta_plan and args.cargar:
                 plan = elegir_plan(a, m, planes_gymflow(config))
                 if plan:
                     decision = decidir(a, m, socio, config, plan=plan)
-                    elegido_a_mano = True
                 else:
                     decision.motivo = "NO cargado (elegiste no cargarlo): " + decision.motivo
             accion = decision.motivo
@@ -167,7 +165,7 @@ def main() -> None:
                 n_manual += 1
                 if decision.falta_plan and not args.cargar:
                     accion = "Te va a preguntar el plan. " + accion
-            elif args.cargar and not elegido_a_mano and not confirmar(a, m, decision.motivo):
+            elif args.cargar and not confirmar(a, m, decision.motivo):
                 accion = "NO cargado (dijiste que no): " + accion
                 n_manual += 1
             elif args.cargar:
