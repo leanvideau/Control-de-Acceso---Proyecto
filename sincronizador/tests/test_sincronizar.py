@@ -181,3 +181,15 @@ def test_forma_otro_elige_no_cargar(tmp_path, monkeypatch):
     monkeypatch.setattr(sincronizar, "pagos_nuevos", lambda pg, al, u, d: [(al[0], pago_otro)])
     posts, reporte = _correr(tmp_path, monkeypatch, None, ["--cargar"], respuesta=["0"])
     assert posts == [] and "elegiste no cargarlo" in reporte
+
+
+def test_menu_de_dias(monkeypatch):
+    from sincronizar import preguntar_dias
+    r = iter(["2"]); monkeypatch.setattr("builtins.input", lambda *_: next(r))
+    assert preguntar_dias(True) == 7
+    r = iter(["1"]); monkeypatch.setattr("builtins.input", lambda *_: next(r))
+    assert preguntar_dias(True) is None
+    r = iter(["5", "45"]); monkeypatch.setattr("builtins.input", lambda *_: next(r))
+    assert preguntar_dias(False) == 45
+    r = iter(["1"]); monkeypatch.setattr("builtins.input", lambda *_: next(r))
+    assert preguntar_dias(False) == 7

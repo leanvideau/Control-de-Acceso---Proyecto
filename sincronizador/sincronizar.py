@@ -131,11 +131,35 @@ def elegir_forma(a: Alumno, m: Movimiento, formas: list[tuple[str, int]]) -> int
             return formas[int(r) - 1][1] if int(r) else None
 
 
+def preguntar_dias(hay_corrida_anterior: bool) -> int | None:
+    """Menú de cuántos días revisar. None = desde la última corrida."""
+    print()
+    print("¿Cuántos días hacia atrás querés revisar?")
+    opciones = [None] if hay_corrida_anterior else []
+    if hay_corrida_anterior:
+        print("  1. Desde la última vez que lo corriste")
+    for d in (7, 15, 30, 60):
+        opciones.append(d)
+        print(f"  {len(opciones)}. Últimos {d} días")
+    print(f"  {len(opciones) + 1}. Otro número de días")
+    while True:
+        r = input("  Número: ").strip()
+        if r.isdigit() and 1 <= int(r) <= len(opciones):
+            return opciones[int(r) - 1]
+        if r == str(len(opciones) + 1):
+            while True:
+                d = input("  ¿Cuántos días?: ").strip()
+                if d.isdigit() and int(d) > 0:
+                    return int(d)
+
+
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--dias", type=int, default=None,
                     help="ignorar la última corrida y mirar N días hacia atrás")
+    ap.add_argument("--preguntar-dias", action="store_true",
+                    help="preguntar cuántos días revisar (lo usan los .bat)")
     ap.add_argument("--cargar", action="store_true",
                     help="cargar en GymFlow preguntando antes cada uno (sin esto solo muestra qué haría)")
     args = ap.parse_args()
@@ -146,6 +170,9 @@ def main() -> None:
                  config["gymflow_token"])
     estado = leer_estado()
     cargados = set(estado.get("cargados", []))
+
+    if args.preguntar_dias and args.dias is None:
+        args.dias = preguntar_dias("ultima_corrida" in estado)
 
     ahora = datetime.now()
     if args.dias is not None or "ultima_corrida" not in estado:

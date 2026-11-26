@@ -55,6 +55,7 @@ python sincronizar.py --dias 15 --cargar   # revisar un período más largo
 
 En Windows, con doble clic:
 - `probar.bat`: modo prueba (no toca GymFlow).
+- Los dos te preguntan cuántos días revisar (desde la última vez, 7, 15, 30, 60 u otro número).
 - `sincronizar.bat`: carga de verdad, preguntando sí/no en cada uno.
 
 Los dos primero **se actualizan solos** (`actualizar.py` baja la última versión de
