@@ -131,3 +131,28 @@ def test_sin_actividad_modo_prueba(tmp_path, monkeypatch):
     _alumno_sin_actividad(monkeypatch)
     posts, reporte = _correr(tmp_path, monkeypatch, None, [])
     assert posts == [] and "Te va a preguntar el plan" in reporte
+
+
+def test_los_que_no_estan_van_a_archivo_aparte(tmp_path, monkeypatch):
+    import json, sys
+    import sincronizar
+    d = datetime.now()
+    pg = FakePG([alumno(1, d)], {1: [mov(500, d)]})
+
+    class FakeGF:
+        def __init__(self, *a): pass
+        def buscar_por_dni(self, dni): return None
+        def crear_membresia(self, datos): raise AssertionError("no debería cargar")
+
+    (tmp_path / "config.json").write_text(json.dumps(CONFIG))
+    monkeypatch.setattr(sincronizar, "CONFIG", tmp_path / "config.json")
+    monkeypatch.setattr(sincronizar, "ESTADO", tmp_path / "estado.json")
+    monkeypatch.setattr(sincronizar, "REPORTES", tmp_path / "reportes")
+    monkeypatch.setattr(sincronizar, "PowerGym", lambda *a: pg)
+    monkeypatch.setattr(sincronizar, "GymFlow", FakeGF)
+    monkeypatch.setattr(sys, "argv", ["sincronizar.py"])
+    sincronizar.main()
+    archivos = {p.name.split("_2")[0]: p for p in (tmp_path / "reportes").iterdir()}
+    agregar = archivos["alumnos_para_agregar"].read_text(encoding="utf-8-sig")
+    assert "30000001" in agregar and "Musculación" not in agregar  # plan sin nombre en CONFIG de test
+    assert "1751" in agregar

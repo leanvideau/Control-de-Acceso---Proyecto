@@ -28,7 +28,7 @@ from datetime import datetime, timedelta
 from pathlib import Path
 
 from gymflow import GymFlow
-from membresias import decidir, planes_gymflow
+from membresias import buscar_plan, decidir, planes_gymflow
 from powergym import Alumno, Movimiento, PowerGym
 
 CARPETA = Path(__file__).parent
@@ -101,6 +101,26 @@ def elegir_plan(a: Alumno, m: Movimiento, planes: list[dict]) -> dict | None:
             return planes[int(r) - 1] if int(r) else None
 
 
+def escribir_para_agregar(ruta: Path, faltantes: list[tuple[Alumno, Movimiento]],
+                          config: dict) -> None:
+    """Alumnos que pagaron en Power Gym pero no están en GymFlow, para cargarlos a mano."""
+    with ruta.open("w", newline="", encoding="utf-8-sig") as f:
+        w = csv.writer(f, delimiter=";")
+        w.writerow(["DNI", "Nombre", "Teléfono", "Actividades en Power Gym",
+                    "Plan sugerido en GymFlow", "Fecha pago", "Monto", "Forma de pago",
+                    "Vence (sugerido)", "Detalle del pago"])
+        for a, m in faltantes:
+            plan = buscar_plan(a.actividades, config.get("planes", []))
+            nombre_plan, vence = "ELEGIR", ""
+            if plan:
+                nombre_plan = plan.get("nombre", str(plan["plan_id"]))
+                vence = f"{m.fecha.date() + timedelta(days=int(plan.get('dias', 30))):%d/%m/%Y}"
+            w.writerow([a.dni or "SIN DNI", a.nombre, a.telefono or "", a.actividades,
+                        nombre_plan, f"{m.fecha:%d/%m/%Y}",
+                        str(m.monto or "").replace(".", ","), m.forma_pago or "",
+                        vence, m.detalle])
+
+
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -135,6 +155,7 @@ def main() -> None:
     REPORTES.mkdir(exist_ok=True)
     reporte = REPORTES / f"pagos_{ahora:%Y-%m-%d_%H%M}{'' if args.cargar else '_prueba'}.csv"
     socios: dict = {}
+    faltantes: list[tuple[Alumno, Movimiento]] = []
     n_cargados = n_manual = 0
     with reporte.open("w", newline="", encoding="utf-8-sig") as f:
         w = csv.writer(f, delimiter=";")
@@ -148,6 +169,8 @@ def main() -> None:
                     socios[a.dni] = gf.buscar_por_dni(a.dni)
                 socio = socios[a.dni]
             gf_cols = ["", "", "NO ESTÁ EN GYMFLOW"]
+            if socio is None:
+                faltantes.append((a, m))
             if socio:
                 estado_gf = "debe" if socio.debe else (socio.estado_pago or "")
                 gf_cols = [socio.plan or "",
@@ -188,6 +211,10 @@ def main() -> None:
 
     print(f"Pagos nuevos: {len(nuevos)} | cargados: {n_cargados} | "
           f"para hacer a mano: {n_manual} -> {reporte}")
+    if faltantes:
+        para_agregar = reporte.with_name(reporte.name.replace("pagos_", "alumnos_para_agregar_"))
+        escribir_para_agregar(para_agregar, faltantes, config)
+        print(f"Alumnos que no están en GymFlow: {len(faltantes)} -> {para_agregar}")
 
     # En modo prueba no avanzamos el marcador, así la corrida real ve los mismos pagos.
     if args.cargar:

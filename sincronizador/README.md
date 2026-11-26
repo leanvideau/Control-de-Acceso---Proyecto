@@ -18,7 +18,10 @@ que en GymFlow ya figura vigente, etc.) queda en un reporte para hacerlo a mano.
      está vigente → **a mano** (queda en el reporte con el motivo);
    - si no → carga una membresía desde la fecha del pago por los meses del plan, con
      el monto pagado.
-5. Deja un reporte por corrida en `reportes/` (se abre con Excel) y guarda en
+5. Los alumnos que pagaron pero **no están en GymFlow** van además a un archivo aparte,
+   `reportes/alumnos_para_agregar_<fecha>.csv`, con DNI, nombre, teléfono, plan
+   sugerido, pago y vencimiento sugerido, para darlos de alta a mano.
+6. Deja un reporte por corrida en `reportes/` (se abre con Excel) y guarda en
    `estado.json` hasta qué pago llegó, para no cargar nada dos veces.
 
 Limitación: si un alumno paga y no viene al gym en esos días, no aparece. En ese caso
